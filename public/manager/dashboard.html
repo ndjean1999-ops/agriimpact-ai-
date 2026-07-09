@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgriImpact AI — Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#171C14; --paper:#F5EFE0; --paper-soft:#EAE2CC; --terracotta:#C9622B; --terracotta-deep:#A84E20;
+    --leaf:#5B7B4F; --leaf-deep:#415C38; --maize:#E8B84B; --line:rgba(23,28,20,0.12); --white:#FFFCF6; --danger:#A8392E;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{ font-family:'Inter',sans-serif; background:var(--ink); color:var(--paper); min-height:100vh; }
+  .topbar{ background:#11150E; border-bottom:1px solid rgba(255,255,255,0.08); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:20; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .mark{ width:30px;height:30px;border-radius:8px; background:var(--terracotta); color:var(--white); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:700; font-size:15px; }
+  .brand-name{ font-family:'Fraunces',serif; font-weight:600; font-size:15px; color:var(--paper); }
+  .top-right{ display:flex; align-items:center; gap:16px; }
+  .manager-name{ font-size:12.5px; color:rgba(245,239,224,0.6); }
+  .logout{ font-size:12px; color:rgba(245,239,224,0.5); cursor:pointer; }
+
+  .tabs{ display:flex; gap:4px; padding:0 28px; background:#11150E; border-bottom:1px solid rgba(255,255,255,0.08); overflow-x:auto; }
+  .tab{ padding:12px 16px; font-size:13px; font-weight:600; color:rgba(245,239,224,0.5); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
+  .tab.active{ color:var(--maize); border-bottom-color:var(--maize); }
+
+  .wrap{ max-width:1180px; margin:0 auto; padding:28px 28px 60px; }
+  .panel-title{ font-family:'Fraunces',serif; font-size:22px; color:var(--paper); margin-bottom:18px; }
+
+  .kpi-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+  .kpi-card{ background:var(--paper); border-radius:14px; padding:18px; color:var(--ink); }
+  .kpi-label{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(23,28,20,0.5); margin-bottom:6px; }
+  .kpi-value{ font-family:'JetBrains Mono',monospace; font-size:26px; font-weight:600; }
+
+  .card{ background:var(--paper); border-radius:16px; padding:22px; color:var(--ink); margin-bottom:18px; }
+  .card h3{ font-family:'Fraunces',serif; font-size:15.5px; margin-bottom:14px; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:rgba(23,28,20,0.5); padding:8px 10px; border-bottom:1px solid var(--line); }
+  td{ padding:10px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  .pill{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:100px; display:inline-block; }
+  .pill.active{ background:rgba(91,123,79,0.16); color:var(--leaf-deep); }
+  .pill.sold{ background:rgba(232,184,75,0.25); color:#8A6A1A; }
+  .pill.removed, .pill.suspendu{ background:rgba(168,57,46,0.12); color:var(--danger); }
+  .pill.prospect{ background:rgba(23,28,20,0.08); color:rgba(23,28,20,0.6); }
+  .pill.actif{ background:rgba(91,123,79,0.16); color:var(--leaf-deep); }
+
+  .btn{ font-size:12px; font-weight:700; padding:6px 12px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; }
+  .btn-danger{ background:rgba(168,57,46,0.12); color:var(--danger); }
+  .btn-leaf{ background:rgba(91,123,79,0.16); color:var(--leaf-deep); }
+  .btn-ghost{ background:var(--paper-soft); color:var(--ink); }
+  .btn-row{ display:flex; gap:6px; }
+
+  .content-editor{ display:grid; gap:14px; }
+  .content-row{ background:var(--white); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .content-row .key{ font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--terracotta-deep); margin-bottom:8px; font-weight:600; }
+  .content-row select{ font-size:12px; padding:5px 8px; border-radius:6px; border:1px solid var(--line); margin-bottom:8px; font-family:inherit; }
+  .content-row textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-size:13.5px; font-family:inherit; resize:vertical; min-height:60px; color:var(--ink); }
+  .content-row textarea:focus{ outline:2px solid var(--leaf); }
+  .save-row{ display:flex; justify-content:flex-end; margin-top:8px; gap:8px; align-items:center; }
+  .saved-flash{ font-size:11.5px; color:var(--leaf-deep); font-weight:600; opacity:0; transition:opacity .3s; }
+
+  .export-btn{ background:var(--leaf); color:var(--white); font-size:12.5px; font-weight:700; padding:9px 16px; border-radius:10px; border:none; cursor:pointer; font-family:inherit; }
+  .toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .empty{ font-size:13px; color:rgba(23,28,20,0.5); text-align:center; padding:24px 0; }
+  .loading{ font-size:13px; color:rgba(245,239,224,0.5); text-align:center; padding:50px 0; }
+  .audit-line{ font-size:12.5px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .audit-line:last-child{ border-bottom:none; }
+  .audit-meta{ color:rgba(23,28,20,0.5); font-size:11px; margin-top:2px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><div class="mark">A</div><div class="brand-name">AgriImpact AI · Manager</div></div>
+    <div class="top-right">
+      <span class="manager-name" id="managerName">—</span>
+      <span class="logout" onclick="logout()">Se déconnecter</span>
+    </div>
+  </div>
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="overview">Vue d'ensemble</div>
+    <div class="tab" data-tab="content">Contenus du bot</div>
+    <div class="tab" data-tab="marketplace">Marketplace</div>
+    <div class="tab" data-tab="users">Utilisateurs</div>
+    <div class="tab" data-tab="b2b">Partenaires B2B</div>
+    <div class="tab" data-tab="audit">Journal d'audit</div>
+  </div>
+
+  <div class="wrap" id="content"><div class="loading">Chargement...</div></div>
+
+<script>
+  const API_BASE = window.location.origin;
+  const token = localStorage.getItem('agriimpact_manager_token');
+  if (!token) window.location.href = '/manager/index.html';
+  document.getElementById('managerName').textContent = localStorage.getItem('agriimpact_manager_name') || '—';
+
+  function logout(){
+    localStorage.removeItem('agriimpact_manager_token');
+    localStorage.removeItem('agriimpact_manager_name');
+    window.location.href = '/manager/index.html';
+  }
+
+  async function authedFetch(path, options = {}){
+    const res = await fetch(API_BASE + path, {
+      ...options,
+      headers: { ...(options.headers||{}), Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+    });
+    if (res.status === 401) { logout(); throw new Error('unauthorized'); }
+    return res;
+  }
+  async function authedJSON(path, options = {}){
+    const res = await authedFetch(path, options);
+    return res.json();
+  }
+
+  let currentTab = 'overview';
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentTab = tab.dataset.tab;
+      renderTab(currentTab);
+    });
+  });
+
+  function renderTab(tab){
+    const fns = {
+      overview: renderOverview, content: renderContent, marketplace: renderMarketplace,
+      users: renderUsers, b2b: renderB2B, audit: renderAudit
+    };
+    document.getElementById('content').innerHTML = '<div class="loading">Chargement...</div>';
+    fns[tab]();
+  }
+
+  // ---------------- VUE D'ENSEMBLE ----------------
+  async function renderOverview(){
+    const data = await authedJSON('/api/manager/overview');
+    const issuesRows = data.top_issues.length
+      ? data.top_issues.map(i => `<tr><td>${esc(i.diagnostic_label)}</td><td style="text-align:right;font-family:'JetBrains Mono',monospace;">${i.count}</td></tr>`).join('')
+      : '<tr><td colspan="2" class="empty">Pas encore assez de données.</td></tr>';
+
+    document.getElementById('content').innerHTML = `
+      <div class="panel-title">Vue d'ensemble</div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Agriculteurs inscrits</div><div class="kpi-value">${data.total_farmers}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Actifs (30j)</div><div class="kpi-value">${data.active_last_30_days}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Diagnostics</div><div class="kpi-value">${data.total_diagnostics}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Annonces actives</div><div class="kpi-value">${data.active_listings}</div></div>
+      </div>
+      <div class="card">
+        <h3>⚠️ Problèmes agricoles les plus fréquents</h3>
+        <table><thead><tr><th>Diagnostic</th><th style="text-align:right;">Occurrences</th></tr></thead><tbody>${issuesRows}</tbody></table>
+      </div>`;
+  }
+
+  // ---------------- CONTENUS DU BOT ----------------
+  const EDITABLE_CONTENTS = [
+    { key: 'whatsapp.greeting', label: 'Message d\'accueil WhatsApp (menu principal)' },
+    { key: 'home.tip.title', label: 'Titre du conseil du jour (app web)' },
+    { key: 'home.tip.body', label: 'Texte du conseil du jour (app web)' }
+  ];
+  const LANGS = [
+    { code: 'fr', label: 'Français' }, { code: 'en', label: 'English' }, { code: 'fon', label: 'Fon' },
+    { code: 'bariba', label: 'Bariba' }, { code: 'dendi', label: 'Dendi' }, { code: 'yor', label: 'Yoruba' }
+  ];
+
+  async function renderContent(){
+    const existing = await authedJSON('/api/manager/content');
+    const existingMap = {};
+    existing.forEach(row => { existingMap[row.content_key + ':' + row.lang] = row.content_value; });
+
+    const rowsHtml = EDITABLE_CONTENTS.map(item => `
+      <div class="content-row">
+        <div class="key">${item.key}</div>
+        <div style="font-size:13px; font-weight:600; margin-bottom:8px;">${esc(item.label)}</div>
+        <select onchange="loadContentValue('${item.key}', this)">
+          ${LANGS.map(l => `<option value="${l.code}">${l.label}</option>`).join('')}
+        </select>
+        <textarea id="ta-${item.key}" data-key="${item.key}" data-lang="fr">${esc(existingMap[item.key + ':fr'] || '')}</textarea>
+        <div class="save-row">
+          <span class="saved-flash" id="flash-${item.key}">Enregistré ✓</span>
+          <button class="btn btn-leaf" onclick="saveContent('${item.key}')">Enregistrer</button>
+        </div>
+      </div>`).join('');
+
+    document.getElementById('content').innerHTML = `
+      <div class="panel-title">Contenus du bot</div>
+      <p style="font-size:13px; color:rgba(245,239,224,0.6); margin-bottom:18px;">
+        Modifie ici les textes affichés par le bot WhatsApp et l'application, sans toucher au code.
+        Choisis la langue avant de modifier — chaque langue est enregistrée séparément.
+      </p>
+      <div class="content-editor">${rowsHtml}</div>`;
+
+    window._contentCache = existingMap;
+  }
+
+  function loadContentValue(key, selectEl){
+    const lang = selectEl.value;
+    const ta = document.getElementById('ta-' + key);
+    ta.dataset.lang = lang;
+    ta.value = window._contentCache[key + ':' + lang] || '';
+  }
+
+  async function saveContent(key){
+    const ta = document.getElementById('ta-' + key);
+    const lang = ta.dataset.lang;
+    const content_value = ta.value;
+    await authedFetch('/api/manager/content', { method: 'PUT', body: JSON.stringify({ content_key: key, lang, content_value }) });
+    window._contentCache[key + ':' + lang] = content_value;
+    const flash = document.getElementById('flash-' + key);
+    flash.style.opacity = '1';
+    setTimeout(() => { flash.style.opacity = '0'; }, 1800);
+  }
+
+  // ---------------- MARKETPLACE ----------------
+  async function renderMarketplace(){
+    const listings = await authedJSON('/api/manager/listings?status=active');
+    const rows = listings.length ? listings.map(l => `
+      <tr>
+        <td>${esc(l.title)}</td>
+        <td>${esc(l.category)}</td>
+        <td>${l.price_amount ? esc(String(l.price_amount)) + ' ' + esc(l.currency) : '—'}</td>
+        <td>${esc(l.location_name || '—')}</td>
+        <td>${esc(l.phone_number || '—')}</td>
+        <td><span class="pill active">active</span></td>
+        <td>
+          <div class="btn-row">
+            <button class="btn btn-leaf" onclick="updateListing(${l.id}, 'sold')">Vendu</button>
+            <button class="btn btn-danger" onclick="updateListing(${l.id}, 'removed')">Retirer</button>
+          </div>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="7" class="empty">Aucune annonce active.</td></tr>';
+
+    document.getElementById('content').innerHTML = `
+      <div class="panel-title">Modération marketplace</div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Titre</th><th>Catégorie</th><th>Prix</th><th>Lieu</th><th>Vendeur</th><th>Statut</th><th>Action</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  async function updateListing(id, status){
+    if (status === 'removed' && !confirm('Retirer définitivement cette annonce ?')) return;
+    await authedFetch('/api/manager/listings/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status }) });
+    renderMarketplace();
+  }
+
+  // ---------------- UTILISATEURS ----------------
+  async function renderUsers(){
+    const users = await authedJSON('/api/manager/users?limit=100');
+    const rows = users.length ? users.map(u => `
+      <tr>
+        <td>${esc(u.whatsapp_name || '—')}</td>
+        <td>${esc((u.phone_number||'').startsWith('web:') ? 'Web' : (u.phone_number||'—'))}</td>
+        <td>${esc(u.location_name || '—')}</td>
+        <td>${esc(u.preferred_language || 'fr')}</td>
+        <td>${esc((u.last_active_at||'').slice(0,16).replace('T',' '))}</td>
+      </tr>`).join('') : '<tr><td colspan="5" class="empty">Aucun utilisateur encore.</td></tr>';
+
+    document.getElementById('content').innerHTML = `
+      <div class="panel-title">Utilisateurs</div>
+      <div class="toolbar">
+        <span style="font-size:13px; color:rgba(245,239,224,0.6);">${users.length} affichés (max 100 récents)</span>
+        <button class="export-btn" onclick="exportUsers()">⬇ Exporter en CSV</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Nom</th><th>Contact</th><th>Localisation</th><th>Langue</th><th>Dernière activité</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  async function exportUsers(){
+    const res = await authedFetch('/api/manager/users/export');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'agriimpact-utilisateurs.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------------- PARTENAIRES B2B ----------------
+  async function renderB2B(){
+    const orgs = await authedJSON('/api/manager/b2b/organizations');
+    const rows = orgs.length ? orgs.map(o => `
+      <tr>
+        <td>${esc(o.name)}</td>
+        <td>${esc(o.org_type)}</td>
+        <td>${esc(o.region_focus || '—')}</td>
+        <td>
+          <select onchange="updateOrgPlan(${o.id}, this.value)">
+            ${['decouverte','standard','premium','sur-mesure'].map(p => `<option value="${p}" ${o.plan===p?'selected':''}>${p}</option>`).join('')}
+          </select>
+        </td>
+        <td><span class="pill ${o.status}">${esc(o.status)}</span></td>
+        <td>
+          <div class="btn-row">
+            ${o.status !== 'actif' ? `<button class="btn btn-leaf" onclick="updateOrgStatus(${o.id}, 'actif')">Activer</button>` : ''}
+            ${o.status !== 'suspendu' ? `<button class="btn btn-danger" onclick="updateOrgStatus(${o.id}, 'suspendu')">Suspendre</button>` : ''}
+          </div>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="6" class="empty">Aucune organisation inscrite.</td></tr>';
+
+    document.getElementById('content').innerHTML = `
+      <div class="panel-title">Partenaires B2B</div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Organisation</th><th>Type</th><th>Zone</th><th>Plan</th><th>Statut</th><th>Action</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  async function updateOrgStatus(id, status){
+    await authedFetch('/api/manager/b2b/organizations/' + id, { method: 'PATCH', body: JSON.stringify({ status }) });
+    renderB2B();
+  }
+  async function updateOrgPlan(id, plan){
+    await authedFetch('/api/manager/b2b/organizations/' + id, { method: 'PATCH', body: JSON.stringify({ plan }) });
+    renderB2B();
+  }
+
+  // ---------------- JOURNAL D'AUDIT ----------------
+  async function renderAudit(){
+    const logs = await authedJSON('/api/manager/audit-log');
+    const lines = logs.length ? logs.map(l => `
+      <div class="audit-line">
+        <strong>${esc(l.action)}</strong> ${l.target_type ? 'sur ' + esc(l.target_type) + (l.target_id ? ' #' + esc(l.target_id) : '') : ''}
+        <div class="audit-meta">${esc(l.actor_email)} · ${esc((l.created_at||'').slice(0,16).replace('T',' '))}</div>
+      </div>`).join('') : '<div class="empty">Aucune action enregistrée encore.</div>';
+
+    document.getElementById('content').innerHTML = `
+      <div class="panel-title">Journal d'audit</div>
+      <div class="card">${lines}</div>`;
+  }
+
+  function esc(str){
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  renderTab('overview');
+</script>
+</body>
+</html>

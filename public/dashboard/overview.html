@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgriImpact AI — Tableau de bord</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root{
+    --ink:#171C14; --paper:#F5EFE0; --paper-soft:#EAE2CC; --terracotta:#C9622B; --terracotta-deep:#A84E20;
+    --leaf:#5B7B4F; --leaf-deep:#415C38; --maize:#E8B84B; --line:rgba(23,28,20,0.12); --white:#FFFCF6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{ font-family:'Inter',sans-serif; background:var(--ink); color:var(--paper); min-height:100vh; }
+  .topbar{ background:#11150E; border-bottom:1px solid rgba(255,255,255,0.08); padding:16px 28px; display:flex; align-items:center; justify-content:space-between; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .mark{ width:32px;height:32px;border-radius:8px; background:var(--leaf); color:var(--paper); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:700; font-size:16px; }
+  .brand-name{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; color:var(--paper); }
+  .org-pill{ font-size:12px; color:rgba(245,239,224,0.6); background:rgba(255,255,255,0.06); padding:6px 12px; border-radius:100px; }
+  .logout{ font-size:12px; color:rgba(245,239,224,0.5); cursor:pointer; }
+
+  .wrap{ max-width:1180px; margin:0 auto; padding:32px 28px 60px; }
+  .page-title{ font-family:'Fraunces',serif; font-size:26px; color:var(--paper); margin-bottom:6px; }
+  .page-sub{ font-size:13.5px; color:rgba(245,239,224,0.55); margin-bottom:28px; }
+
+  .kpi-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px; }
+  .kpi-card{ background:var(--paper); border-radius:16px; padding:20px; color:var(--ink); }
+  .kpi-label{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(23,28,20,0.5); margin-bottom:8px; }
+  .kpi-value{ font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:600; }
+  .kpi-foot{ font-size:11.5px; color:var(--leaf-deep); margin-top:4px; font-weight:600; }
+
+  .panel-grid{ display:grid; grid-template-columns:1.4fr 1fr; gap:18px; margin-bottom:18px; }
+  .panel{ background:var(--paper); border-radius:18px; padding:22px; color:var(--ink); }
+  .panel h3{ font-family:'Fraunces',serif; font-size:16px; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  #map{ height:360px; border-radius:12px; }
+
+  .issue-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .issue-row:last-child{ border-bottom:none; }
+  .issue-name{ flex:1; font-size:13.5px; font-weight:600; }
+  .issue-bar-wrap{ width:90px; height:6px; background:var(--paper-soft); border-radius:100px; overflow:hidden; }
+  .issue-bar{ height:100%; background:var(--terracotta); border-radius:100px; }
+  .issue-count{ font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:rgba(23,28,20,0.6); width:30px; text-align:right; }
+
+  .empty{ font-size:13px; color:rgba(23,28,20,0.5); text-align:center; padding:30px 0; }
+  .loading{ font-size:13px; color:rgba(245,239,224,0.5); text-align:center; padding:60px 0; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><div class="mark">A</div><div class="brand-name">AgriImpact AI · Partenaires</div></div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="org-pill" id="orgPill">—</span>
+      <span class="logout" onclick="logout()">Se déconnecter</span>
+    </div>
+  </div>
+
+  <div class="wrap" id="content">
+    <div class="loading">Chargement du tableau de bord...</div>
+  </div>
+
+<script>
+  const API_BASE = window.location.origin;
+  const token = localStorage.getItem('agriimpact_b2b_token');
+  const orgRaw = localStorage.getItem('agriimpact_b2b_org');
+
+  if (!token) {
+    window.location.href = '/dashboard/index.html';
+  }
+
+  function logout(){
+    localStorage.removeItem('agriimpact_b2b_token');
+    localStorage.removeItem('agriimpact_b2b_org');
+    window.location.href = '/dashboard/index.html';
+  }
+
+  async function authedFetch(path){
+    const res = await fetch(API_BASE + path, { headers: { Authorization: 'Bearer ' + token } });
+    if (res.status === 401) { logout(); throw new Error('unauthorized'); }
+    return res.json();
+  }
+
+  async function loadDashboard(){
+    try {
+      const [overview, mapData, issues] = await Promise.all([
+        authedFetch('/api/b2b/dashboard/overview'),
+        authedFetch('/api/b2b/dashboard/map'),
+        authedFetch('/api/b2b/dashboard/crop-issues')
+      ]);
+      render(overview, mapData, issues);
+    } catch (err) {
+      document.getElementById('content').innerHTML = '<div class="empty">Impossible de charger le tableau de bord. Réessaie plus tard.</div>';
+    }
+  }
+
+  function render(overview, mapData, issues){
+    document.getElementById('orgPill').textContent = overview.organization.name + ' · ' + overview.organization.plan;
+
+    const m = overview.metrics;
+    document.getElementById('content').innerHTML = `
+      <div class="page-title">Vue d'ensemble${overview.organization.region_focus ? ' — ' + overview.organization.region_focus : ''}</div>
+      <div class="page-sub">Données agrégées et anonymisées issues d'AgriImpact AI. Aucune donnée individuelle (nom, téléphone) n'est partagée.</div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Agriculteurs inscrits</div><div class="kpi-value">${m.total_farmers}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Actifs (30 jours)</div><div class="kpi-value">${m.active_last_30_days}</div><div class="kpi-foot">${m.active_last_7_days} cette semaine</div></div>
+        <div class="kpi-card"><div class="kpi-label">Diagnostics réalisés</div><div class="kpi-value">${m.total_diagnostics}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Annonces actives</div><div class="kpi-value">${m.active_listings}</div></div>
+      </div>
+
+      <div class="panel-grid">
+        <div class="panel">
+          <h3>🗺️ Répartition géographique</h3>
+          <div id="map"></div>
+        </div>
+        <div class="panel">
+          <h3>⚠️ Problèmes agricoles fréquents</h3>
+          <div id="issuesList"></div>
+        </div>
+      </div>
+    `;
+
+    renderMap(mapData.points);
+    renderIssues(issues.top_issues);
+  }
+
+  function renderMap(points){
+    const map = L.map('map', { zoomControl: true }).setView([9.3372, 2.6303], 7); // centré Bénin
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', maxZoom: 12
+    }).addTo(map);
+
+    if (!points.length) return;
+    points.forEach(p => {
+      L.circleMarker([p.latitude, p.longitude], {
+        radius: 6, color: '#C9622B', fillColor: '#C9622B', fillOpacity: 0.6, weight: 1
+      }).addTo(map).bindPopup(p.location_name || 'Zone agricole');
+    });
+  }
+
+  function renderIssues(issues){
+    const el = document.getElementById('issuesList');
+    if (!issues.length) {
+      el.innerHTML = '<div class="empty">Pas encore assez de données de diagnostic.</div>';
+      return;
+    }
+    const max = Math.max(...issues.map(i => i.count));
+    el.innerHTML = issues.map(i => `
+      <div class="issue-row">
+        <div class="issue-name">${i.diagnostic_label}</div>
+        <div class="issue-bar-wrap"><div class="issue-bar" style="width:${Math.round((i.count/max)*100)}%"></div></div>
+        <div class="issue-count">${i.count}</div>
+      </div>`).join('');
+  }
+
+  loadDashboard();
+</script>
+</body>
+</html>

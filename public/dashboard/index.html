@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgriImpact AI — Espace partenaires</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#171C14; --paper:#F5EFE0; --terracotta:#C9622B; --terracotta-deep:#A84E20;
+    --leaf:#5B7B4F; --leaf-deep:#415C38; --line:rgba(23,28,20,0.14); --white:#FFFCF6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'Inter',sans-serif; background:var(--ink); color:var(--ink);
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+    background-image: radial-gradient(circle at 20% 20%, rgba(91,123,79,0.18), transparent 50%),
+                       radial-gradient(circle at 80% 80%, rgba(201,98,43,0.14), transparent 50%);
+  }
+  .card{ background:var(--paper); border-radius:20px; max-width:420px; width:100%; padding:40px 36px; box-shadow:0 30px 80px rgba(0,0,0,0.4); }
+  .mark{ width:42px;height:42px;border-radius:11px; background:var(--leaf); color:var(--paper); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:700; font-size:22px; margin-bottom:20px; }
+  h1{ font-family:'Fraunces',serif; font-size:24px; font-weight:600; margin-bottom:6px; }
+  .sub{ font-size:13.5px; color:rgba(23,28,20,0.6); margin-bottom:28px; line-height:1.5; }
+  label{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:rgba(23,28,20,0.55); display:block; margin-bottom:6px; }
+  input{ width:100%; border:1px solid var(--line); background:var(--white); border-radius:10px; padding:12px 14px; font-size:14px; margin-bottom:16px; font-family:inherit; }
+  input:focus{ outline:2px solid var(--leaf); }
+  button{ width:100%; background:var(--leaf); color:var(--white); border:none; border-radius:10px; padding:13px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+  button:active{ background:var(--leaf-deep); }
+  .error{ background:rgba(168,57,46,0.1); color:#8A2E22; border-radius:10px; padding:10px 12px; font-size:13px; margin-bottom:16px; display:none; }
+  .toggle{ text-align:center; margin-top:20px; font-size:13px; color:rgba(23,28,20,0.6); }
+  .toggle a{ color:var(--terracotta-deep); font-weight:600; text-decoration:none; cursor:pointer; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  select{ width:100%; border:1px solid var(--line); background:var(--white); border-radius:10px; padding:12px 14px; font-size:14px; margin-bottom:16px; font-family:inherit; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark">A</div>
+    <h1 id="formTitle">Espace partenaires</h1>
+    <p class="sub" id="formSub">Connecte-toi pour accéder au tableau de bord agricole de ta zone.</p>
+
+    <div class="error" id="errorBox"></div>
+
+    <form id="loginForm">
+      <label>Email</label>
+      <input type="email" id="loginEmail" required>
+      <label>Mot de passe</label>
+      <input type="password" id="loginPassword" required>
+      <button type="submit">Se connecter</button>
+    </form>
+
+    <form id="registerForm" style="display:none;">
+      <label>Nom de l'organisation</label>
+      <input type="text" id="orgName" required>
+      <label>Type d'organisation</label>
+      <select id="orgType">
+        <option value="ong">ONG</option>
+        <option value="cooperative">Coopérative agricole</option>
+        <option value="banque">Banque agricole</option>
+        <option value="assureur">Assureur</option>
+        <option value="ministere">Ministère / institution publique</option>
+        <option value="autre">Autre</option>
+      </select>
+      <label>Zone d'intervention</label>
+      <input type="text" id="regionFocus" placeholder="ex: Nord-Bénin, national...">
+      <div class="row2">
+        <div><label>Email admin</label><input type="email" id="registerEmail" required></div>
+        <div><label>Mot de passe</label><input type="password" id="registerPassword" required></div>
+      </div>
+      <button type="submit">Créer mon espace</button>
+    </form>
+
+    <div class="toggle">
+      <span id="toggleText">Pas encore de compte ? <a onclick="toggleForm()">Inscrire mon organisation</a></span>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = window.location.origin;
+  let mode = 'login';
+
+  function toggleForm(){
+    mode = mode === 'login' ? 'register' : 'login';
+    document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
+    document.getElementById('registerForm').style.display = mode === 'register' ? 'block' : 'none';
+    document.getElementById('formTitle').textContent = mode === 'login' ? 'Espace partenaires' : "Inscription partenaire";
+    document.getElementById('formSub').textContent = mode === 'login'
+      ? 'Connecte-toi pour accéder au tableau de bord agricole de ta zone.'
+      : "Crée l'accès de ton organisation au tableau de bord AgriImpact AI.";
+    document.getElementById('toggleText').innerHTML = mode === 'login'
+      ? 'Pas encore de compte ? <a onclick="toggleForm()">Inscrire mon organisation</a>'
+      : 'Déjà inscrit ? <a onclick="toggleForm()">Se connecter</a>';
+    document.getElementById('errorBox').style.display = 'none';
+  }
+
+  function showError(msg){
+    const box = document.getElementById('errorBox');
+    box.textContent = msg;
+    box.style.display = 'block';
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(API_BASE + '/api/b2b/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('loginEmail').value,
+          password: document.getElementById('loginPassword').value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) return showError(data.error || 'Connexion impossible.');
+      localStorage.setItem('agriimpact_b2b_token', data.token);
+      localStorage.setItem('agriimpact_b2b_org', JSON.stringify(data.organization));
+      window.location.href = '/dashboard/overview.html';
+    } catch (err) {
+      showError('Erreur réseau. Vérifie ta connexion.');
+    }
+  });
+
+  document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(API_BASE + '/api/b2b/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          org_name: document.getElementById('orgName').value,
+          org_type: document.getElementById('orgType').value,
+          region_focus: document.getElementById('regionFocus').value,
+          admin_email: document.getElementById('registerEmail').value,
+          admin_password: document.getElementById('registerPassword').value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) return showError(data.error || 'Inscription impossible.');
+      alert('Organisation créée ! Tu peux maintenant te connecter.');
+      toggleForm();
+    } catch (err) {
+      showError('Erreur réseau. Vérifie ta connexion.');
+    }
+  });
+</script>
+</body>
+</html>
