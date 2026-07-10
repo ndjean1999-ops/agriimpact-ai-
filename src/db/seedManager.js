@@ -1,4 +1,3 @@
-// src/db/seedManager.js
 //
 // Crée (ou met à jour le mot de passe d') le compte manager principal.
 // À exécuter une seule fois après le déploiement : `npm run create-manager`
@@ -14,27 +13,33 @@ async function seedManager() {
   const fullName = process.env.MANAGER_NAME || 'Administrateur AgriImpact';
 
   if (!email || !password) {
-    console.error('❌ Définis MANAGER_EMAIL et MANAGER_PASSWORD dans ton .env avant de lancer ce script.');
+    console.error('Definis MANAGER_EMAIL et MANAGER_PASSWORD dans ton .env avant de lancer ce script.');
     process.exit(1);
   }
   if (password.length < 8) {
-    console.error('❌ Le mot de passe manager doit faire au moins 8 caractères.');
+    console.error('Le mot de passe manager doit faire au moins 8 caracteres.');
     process.exit(1);
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const existing = db.prepare('SELECT id FROM manager_users WHERE email = ?').get(email);
+  const existingResult = await db.query('SELECT id FROM manager_users WHERE email = $1', [email]);
+  const existing = existingResult.rows[0];
 
   if (existing) {
-    db.prepare('UPDATE manager_users SET password_hash = ?, full_name = ? WHERE id = ?')
-      .run(passwordHash, fullName, existing.id);
-    console.log(`✅ Mot de passe mis à jour pour le manager ${email}`);
+    await db.query(
+      'UPDATE manager_users SET password_hash = $1, full_name = $2 WHERE id = $3',
+      [passwordHash, fullName, existing.id]
+    );
+    console.log(`Mot de passe mis a jour pour le manager ${email}`);
   } else {
-    db.prepare('INSERT INTO manager_users (email, password_hash, full_name) VALUES (?, ?, ?)')
-      .run(email, passwordHash, fullName);
-    console.log(`✅ Compte manager créé : ${email}`);
+    await db.query(
+      'INSERT INTO manager_users (email, password_hash, full_name) VALUES ($1, $2, $3)',
+      [email, passwordHash, fullName]
+    );
+    console.log(`Compte manager cree : ${email}`);
   }
   console.log('   Tu peux maintenant te connecter sur /manager');
+  await db.end();
 }
 
 seedManager();
