@@ -1,44 +1,69 @@
-// src/db/models/b2bModel.js
+// src/db/models/userModel.js
 const db = require('../connection');
-const crypto = require('crypto');
 
-function createOrganization(data) {
-  const apiKey = 'aik_' + crypto.randomBytes(20).toString('hex');
-  const result = db.prepare(`
-    INSERT INTO b2b_organizations (name, org_type, contact_name, contact_email, contact_phone, plan, region_focus, api_key)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    data.name, data.org_type, data.contact_name || null, data.contact_email || null,
-    data.contact_phone || null, data.plan || 'decouverte', data.region_focus || null, apiKey
+async function findByPhone(phoneNumber) {
+  const result = await db.query('SELECT * FROM users WHERE phone_number = $1', [phoneNumber]);
+  return result.rows[0];
+}
+
+async function findOrCreateByPhone(phoneNumber, whatsappName) {
+  let user = await findByPhone(phoneNumber);
+  if (!user) {
+    const result = await db.query(
+      'INSERT INTO users (phone_number, whatsapp_name) VALUES ($1, $2) RETURNING *',
+      [phoneNumber, whatsappName || null]
+    );
+    user = result.rows[0];
+  } else {
+    await db.query('UPDATE users SET last_active_at = NOW() WHERE id = $1', [user.id]);
+  }
+  return user;
+}
+
+async function updateLanguage(userId, lang) {
+  await db.query('UPDATE users SET preferred_language = $1 WHERE id = $2', [lang, userId]);
+}
+
+async function updateLocation(userId, lat, lon, locationName) {
+  await db.query(
+    'UPDATE users SET latitude = $1, longitude = $2, location_name = $3 WHERE id = $4',
+    [lat, lon, locationName, userId]
   );
-  return getOrganizationById(result.lastInsertRowid);
 }
 
-function getOrganizationById(id) {
-  return db.prepare('SELECT * FROM b2b_organizations WHERE id = ?').get(id);
+async function getById(userId) {
+  const result = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+  return result.rows[0];
 }
 
-function getOrganizationByApiKey(apiKey) {
-  return db.prepare('SELECT * FROM b2b_organizations WHERE api_key = ?').get(apiKey);
+async function countAll() {
+  const result = await db.query('SELECT COUNT(*) as count FROM users');
+  return parseInt(result.rows[0].count, 10);
 }
 
-function createAdminUser(organizationId, email, passwordHash, fullName, role = 'admin') {
-  const result = db.prepare(`
-    INSERT INTO b2b_admin_users (organization_id, email, password_hash, full_name, role)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(organizationId, email, passwordHash, fullName || null, role);
-  return getAdminById(result.lastInsertRowid);
+async function countActiveLast(days) {
+  const result = await db.query(
+    `SELECT COUNT(*) as count FROM users WHERE last_active_at >= NOW() - ($1 || ' days')::interval`,
+    [days]
+  );
+  return parseInt(result.rows[0].count, 10);
 }
 
-function getAdminByEmail(email) {
-  return db.prepare('SELECT * FROM b2b_admin_users WHERE email = ?').get(email);
-}
-
-function getAdminById(id) {
-  return db.prepare('SELECT * FROM b2b_admin_users WHERE id = ?').get(id);
+async function listForB2B(regionFilter) {
+  if (regionFilter) {
+    const result = await db.query(
+      'SELECT id, location_name, latitude, longitude, preferred_language, crop_types, created_at FROM users WHERE location_name LIKE $1',
+      [`%${regionFilter}%`]
+    );
+    return result.rows;
+  }
+  const result = await db.query(
+    'SELECT id, location_name, latitude, longitude, preferred_language, crop_types, created_at FROM users'
+  );
+  return result.rows;
 }
 
 module.exports = {
-  createOrganization, getOrganizationById, getOrganizationByApiKey,
-  createAdminUser, getAdminByEmail, getAdminById
+  findByPhone, findOrCreateByPhone, updateLanguage, updateLocation,
+  getById, countAll, countActiveLast, listForB2B
 };
