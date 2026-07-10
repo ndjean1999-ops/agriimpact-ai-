@@ -1,56 +1,66 @@
 // src/db/models/userModel.js
 const db = require('../connection');
 
-function findByPhone(phoneNumber) {
-  return db.prepare('SELECT * FROM users WHERE phone_number = ?').get(phoneNumber);
+async function findByPhone(phoneNumber) {
+  const result = await db.query('SELECT * FROM users WHERE phone_number = $1', [phoneNumber]);
+  return result.rows[0];
 }
 
-function findOrCreateByPhone(phoneNumber, whatsappName) {
-  let user = findByPhone(phoneNumber);
+async function findOrCreateByPhone(phoneNumber, whatsappName) {
+  let user = await findByPhone(phoneNumber);
   if (!user) {
-    const result = db.prepare(
-      'INSERT INTO users (phone_number, whatsapp_name) VALUES (?, ?)'
-    ).run(phoneNumber, whatsappName || null);
-    user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    const result = await db.query(
+      'INSERT INTO users (phone_number, whatsapp_name) VALUES ($1, $2) RETURNING *',
+      [phoneNumber, whatsappName || null]
+    );
+    user = result.rows[0];
   } else {
-    db.prepare('UPDATE users SET last_active_at = datetime(\'now\') WHERE id = ?').run(user.id);
+    await db.query('UPDATE users SET last_active_at = NOW() WHERE id = $1', [user.id]);
   }
   return user;
 }
 
-function updateLanguage(userId, lang) {
-  db.prepare('UPDATE users SET preferred_language = ? WHERE id = ?').run(lang, userId);
+async function updateLanguage(userId, lang) {
+  await db.query('UPDATE users SET preferred_language = $1 WHERE id = $2', [lang, userId]);
 }
 
-function updateLocation(userId, lat, lon, locationName) {
-  db.prepare(
-    'UPDATE users SET latitude = ?, longitude = ?, location_name = ? WHERE id = ?'
-  ).run(lat, lon, locationName, userId);
+async function updateLocation(userId, lat, lon, locationName) {
+  await db.query(
+    'UPDATE users SET latitude = $1, longitude = $2, location_name = $3 WHERE id = $4',
+    [lat, lon, locationName, userId]
+  );
 }
 
-function getById(userId) {
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+async function getById(userId) {
+  const result = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+  return result.rows[0];
 }
 
-function countAll() {
-  return db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+async function countAll() {
+  const result = await db.query('SELECT COUNT(*) as count FROM users');
+  return parseInt(result.rows[0].count, 10);
 }
 
-function countActiveLast(days) {
-  return db.prepare(
-    `SELECT COUNT(*) as count FROM users WHERE last_active_at >= datetime('now', '-' || ? || ' days')`
-  ).get(days).count;
+async function countActiveLast(days) {
+  const result = await db.query(
+    `SELECT COUNT(*) as count FROM users WHERE last_active_at >= NOW() - ($1 || ' days')::interval`,
+    [days]
+  );
+  return parseInt(result.rows[0].count, 10);
 }
 
-function listForB2B(regionFilter) {
+async function listForB2B(regionFilter) {
   if (regionFilter) {
-    return db.prepare(
-      'SELECT id, location_name, latitude, longitude, preferred_language, crop_types, created_at FROM users WHERE location_name LIKE ?'
-    ).all(`%${regionFilter}%`);
+    const result = await db.query(
+      'SELECT id, location_name, latitude, longitude, preferred_language, crop_types, created_at FROM users WHERE location_name LIKE $1',
+      [`%${regionFilter}%`]
+    );
+    return result.rows;
   }
-  return db.prepare(
+  const result = await db.query(
     'SELECT id, location_name, latitude, longitude, preferred_language, crop_types, created_at FROM users'
-  ).all();
+  );
+  return result.rows;
 }
 
 module.exports = {
