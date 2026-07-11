@@ -1,1 +1,621 @@
-
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>AgriImpact AI — Conseiller agricole</title>
+<style>
+  :root{
+    --terre: #7a4a2b;
+    --terre-dark: #4e2e19;
+    --sable: #f2e6d3;
+    --sable-light: #faf5ea;
+    --feuille: #4a7c3f;
+    --feuille-dark: #2f5426;
+    --mil: #d9a441;
+    --alerte: #b3452c;
+    --texte: #2b2118;
+    --ombre: rgba(43,33,24,0.16);
+    --radius: 14px;
+    --font-disp: 'Frank Ruhl Libre', Georgia, serif;
+    --font-body: 'Work Sans', -apple-system, sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  body{
+    font-family: var(--font-body);
+    background: var(--sable-light);
+    color: var(--texte);
+    min-height:100vh;
+    padding-bottom: 84px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.01ms !important; transition-duration:0.01ms !important; }
+  }
+  .motif{
+    position:fixed; inset:0; z-index:-1; opacity:0.05; pointer-events:none;
+    background-image:
+      repeating-linear-gradient(45deg, var(--terre) 0 2px, transparent 2px 22px),
+      repeating-linear-gradient(-45deg, var(--terre) 0 2px, transparent 2px 22px);
+  }
+  header{
+    background: linear-gradient(135deg, var(--terre-dark), var(--terre));
+    color: var(--sable-light);
+    padding: 18px 20px 22px;
+    position: sticky; top:0; z-index:50;
+    box-shadow: 0 4px 14px var(--ombre);
+  }
+  .header-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:38px; height:38px; border-radius:10px;
+    background: var(--mil);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-disp); font-weight:700; font-size:19px; color:var(--terre-dark);
+    flex-shrink:0;
+  }
+  .brand-name{ font-family: var(--font-disp); font-size:19px; font-weight:600; letter-spacing:0.2px; }
+  .brand-tag{ font-size:11px; opacity:0.75; margin-top:1px; }
+  select#langSwitch{
+    background: rgba(255,255,255,0.14);
+    color: var(--sable-light);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 100px;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-family: var(--font-body);
+    appearance:none;
+    -webkit-appearance:none;
+  }
+  .weather-strip{
+    margin-top:16px;
+    background: rgba(255,255,255,0.1);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display:flex; align-items:center; gap:12px;
+    backdrop-filter: blur(4px);
+  }
+  .weather-icon{ font-size:28px; line-height:1; }
+  .weather-info{ flex:1; min-width:0; }
+  .weather-temp{ font-family: var(--font-disp); font-size:22px; font-weight:600; }
+  .weather-desc{ font-size:12px; opacity:0.85; }
+  .weather-loc{ font-size:11px; opacity:0.65; margin-top:2px; }
+  main{ padding: 20px 16px 20px; max-width:560px; margin:0 auto; }
+  section{ margin-bottom: 28px; }
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px; }
+  .section-title{
+    font-family: var(--font-disp); font-size:19px; font-weight:600; color: var(--terre-dark);
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-sub{ font-size:12px; color:#8a7a68; }
+  .diag-card{
+    background: linear-gradient(160deg, var(--feuille) 0%, var(--feuille-dark) 100%);
+    border-radius: 20px;
+    padding: 22px 20px;
+    color: var(--sable-light);
+    position:relative;
+    overflow:hidden;
+    box-shadow: 0 8px 24px rgba(47,84,38,0.25);
+  }
+  .diag-card::after{
+content:"🌿"; position:absolute; right:-10px; bottom:-18px; font-size:110px; opacity:0.12;
+    transform:rotate(-12deg);
+  }
+  .diag-title{ font-family: var(--font-disp); font-size:20px; font-weight:600; margin-bottom:6px; }
+  .diag-text{ font-size:13.5px; opacity:0.92; line-height:1.5; margin-bottom:18px; max-width:88%; }
+  #photoInput{ display:none; }
+  .diag-actions{ display:flex; gap:10px; position:relative; z-index:1; }
+  .btn-photo{
+    flex:1; background: var(--sable-light); color: var(--feuille-dark);
+    border:none; border-radius:100px; padding:13px 16px;
+    font-family: var(--font-body); font-weight:600; font-size:14px;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    cursor:pointer; transition: transform 0.15s ease;
+  }
+  .btn-photo:active{ transform: scale(0.96); }
+  .btn-photo.secondary{
+    background: rgba(255,255,255,0.14); color: var(--sable-light);
+    border:1.5px solid rgba(255,255,255,0.4);
+  }
+  .preview-zone{ margin-top:16px; position:relative; z-index:1; }
+  .preview-img{
+    width:100%; border-radius:14px; max-height:220px; object-fit:cover;
+    border: 2px solid rgba(255,255,255,0.3);
+  }
+  .diag-result{
+    margin-top:14px; background: rgba(255,255,255,0.12); border-radius:14px; padding:16px;
+    font-size:13.5px; line-height:1.55; display:none;
+  }
+  .diag-result.show{ display:block; }
+  .diag-result h4{ font-family: var(--font-disp); font-size:15px; margin-bottom:6px; }
+  .diag-loading{ display:none; align-items:center; gap:10px; margin-top:14px; font-size:13px; opacity:0.9; }
+  .diag-loading.show{ display:flex; }
+  .spinner{
+    width:16px; height:16px; border-radius:50%;
+    border:2px solid rgba(255,255,255,0.3); border-top-color: var(--sable-light);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+  .cat-scroll{
+    display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:14px;
+    scrollbar-width:none;
+  }
+  .cat-scroll::-webkit-scrollbar{ display:none; }
+  .cat-chip{
+    flex-shrink:0; padding:8px 15px; border-radius:100px; font-size:13px; font-weight:500;
+    background: var(--sable); color: var(--terre-dark); border:1.5px solid transparent;
+    cursor:pointer; white-space:nowrap;
+  }
+  .cat-chip.active{ background: var(--terre); color: var(--sable-light); }
+  .listing-grid{ display:flex; flex-direction:column; gap:10px; }
+  .listing-card{
+    background:#fff; border-radius: var(--radius); padding:14px;
+    display:flex; gap:12px; align-items:center;
+    border:1px solid #ece2d2; box-shadow: 0 2px 6px var(--ombre);
+  }
+  .listing-thumb{
+    width:56px; height:56px; border-radius:10px; flex-shrink:0;
+    background: var(--sable); display:flex; align-items:center; justify-content:center; font-size:24px;
+  }
+  .listing-body{ flex:1; min-width:0; }
+  .listing-title{ font-weight:600; font-size:14.5px; margin-bottom:2px; }
+  .listing-meta{ font-size:12px; color:#8a7a68; }
+  .listing-price{ font-family: var(--font-disp); font-weight:600; font-size:15px; color: var(--terre); white-space:nowrap; }
+  .btn-sell{
+    width:100%; margin-top:14px; background:none; border:1.5px dashed #b8a894;
+    color:#8a7a68; border-radius: var(--radius); padding:13px; font-size:13.5px;
+    font-family: var(--font-body); cursor:pointer;
+  }
+  .tip-card{
+    background: var(--sable); border-radius: var(--radius); padding:16px;
+    display:flex; gap:12px; align-items:flex-start; border-left:4px solid var(--mil);
+  }
+  .tip-icon{ font-size:22px; flex-shrink:0; }
+  .tip-text{ font-size:13.5px; line-height:1.55; }
+  .tip-label{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color: var(--mil); font-weight:600; margin-bottom:3px; }
+  .chat-box{
+    background:#fff; border-radius: var(--radius); border:1px solid #ece2d2;
+    box-shadow: 0 2px 6px var(--ombre); overflow:hidden;
+  }
+  .chat-messages{ padding:14px; max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; }
+  .msg{ max-width:82%; padding:10px 13px; border-radius:14px; font-size:13.5px; line-height:1.45; }
+  .msg.bot{ background: var(--sable); align-self:flex-start; border-bottom-left-radius:4px; }
+  .msg.user{ background: var(--feuille); color:#fff; align-self:flex-end; border-bottom-right-radius:4px; }
+  .chat-input-row{ display:flex; gap:8px; padding:12px; border-top:1px solid #ece2d2; }
+  .chat-input-row input{
+    flex:1; border:1px solid #ddd0bc; border-radius:100px; padding:10px 14px; font-size:13.5px;
+    font-family: var(--font-body); outline:none;
+  }
+  .chat-input-row input:focus{ border-color: var(--feuille); }
+  .chat-send{
+    background: var(--feuille); color:#fff; border:none; border-radius:50%;
+    width:38px; height:38px; flex-shrink:0; font-size:16px; cursor:pointer;
+  }
+  nav.tabbar{
+    position:fixed; bottom:0; left:0; right:0; z-index:50;
+    background: var(--sable-light); border-top:1px solid #ece2d2;
+    display:flex; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .tab-btn{
+    flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:8px 4px; font-family: var(--font-body); font-size:10.5px; color:#a0917d; cursor:pointer;
+  }
+  .tab-btn.active{ color: var(--terre); }
+  .tab-btn .icon{ font-size:19px; }
+  button:focus-visible, input:focus-visible, select:focus-visible{
+    outline: 2.5px solid var(--mil); outline-offset:2px;
+  }
+  @media (min-width: 600px){
+    main{ padding-top:28px; }
+  }
+</style>
+</head>
+<body>
+<div class="motif"></div>
+<header>
+  <div class="header-row">
+    <div class="brand">
+      <div class="brand-mark">A</div>
+      <div>
+        <div class="brand-name" data-i18n="brandName">AgriImpact AI</div>
+        <div class="brand-tag" data-i18n="brandTag">Ton conseiller agricole, jour et nuit</div>
+      </div>
+    </div>
+    <select id="langSwitch" aria-label="Choisir la langue">
+      <option value="fr">Français</option>
+      <option value="en">English</option>
+      <option value="fon">Fon</option>
+      <option value="bariba">Baatɔnum</option>
+      <option value="dendi">Dendi</option>
+      <option value="yor">Yorùbá</option>
+    </select>
+  </div>
+  <div class="weather-strip" id="weatherStrip">
+    <div class="weather-icon" id="weatherIcon">☀️</div>
+    <div class="weather-info">
+      <div class="weather-temp" id="weatherTemp">--°C</div>
+      <div class="weather-desc" id="weatherDesc" data-i18n="weatherLoading">Chargement météo…</div>
+      <div class="weather-loc" id="weatherLoc"></div>
+    </div>
+  </div>
+</header>
+<main>
+  <section id="diagnostic">
+    <div class="diag-card">
+      <div class="diag-title" data-i18n="diagTitle">Une plante malade ?</div>
+      <div class="diag-text" data-i18n="diagText">Prends une photo de la feuille ou du plant. L'IA te dit ce qu'elle a et comment la soigner, en 30 secondes.</div>
+      <div class="diag-actions">
+        <button class="btn-photo" id="btnCamera">📷 <span data-i18n="btnTakePhoto">Prendre une photo</span></button>
+        <button class="btn-photo secondary" id="btnGallery">🖼️ <span data-i18n="btnGallery">Galerie</span></button>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" capture="environment">
+      <div class="preview-zone" id="previewZone" style="display:none;">
+        <img class="preview-img" id="previewImg" alt="Photo de la plante">
+        <div class="diag-loading" id="diagLoading">
+          <div class="spinner"></div>
+          <span data-i18n="diagAnalyzing">Analyse en cours…</span>
+        </div>
+        <div class="diag-result" id="diagResult"></div>
+      </div>
+    </div>
+  </section>
+  <section id="tip">
+    <div class="tip-card">
+<div class="tip-icon">💡</div>
+      <div>
+        <div class="tip-label" data-i18n="tipLabel">Conseil du jour</div>
+        <div class="tip-text" id="tipText" data-i18n="tipDefault">Arrose tôt le matin ou en fin de journée : moins d'évaporation, plus d'eau pour tes plants.</div>
+      </div>
+    </div>
+  </section>
+  <section id="marketplace">
+    <div class="section-head">
+      <div class="section-title">🧺 <span data-i18n="marketTitle">Marché</span></div>
+      <div class="section-sub" id="marketCount">— <span data-i18n="marketAnnonces">annonces</span></div>
+    </div>
+    <div class="cat-scroll" id="catScroll">
+      <div class="cat-chip active" data-cat="all" data-i18n="catAll">Tout</div>
+      <div class="cat-chip" data-cat="crops" data-i18n="catCrops">Récoltes</div>
+      <div class="cat-chip" data-cat="inputs" data-i18n="catInputs">Intrants</div>
+      <div class="cat-chip" data-cat="equipment" data-i18n="catEquipment">Matériel</div>
+      <div class="cat-chip" data-cat="livestock" data-i18n="catLivestock">Élevage</div>
+    </div>
+    <div class="listing-grid" id="listingGrid"></div>
+    <button class="btn-sell" id="btnSell">+ <span data-i18n="btnSell">Publier une annonce</span></button>
+  </section>
+  <section id="conseiller">
+    <div class="section-head">
+      <div class="section-title">💬 <span data-i18n="chatTitle">Poser une question</span></div>
+    </div>
+    <div class="chat-box">
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg bot" data-i18n="chatWelcome">Bonjour ! Je suis là pour répondre à tes questions sur tes cultures, la météo, ou le marché. Pose ta question ci-dessous.</div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" data-i18n-placeholder="chatPlaceholder" placeholder="Écris ta question…">
+        <button class="chat-send" id="chatSend" aria-label="Envoyer">➤</button>
+      </div>
+    </div>
+  </section>
+</main>
+<nav class="tabbar">
+  <button class="tab-btn active" data-target="diagnostic">
+    <span class="icon">🌿</span><span data-i18n="navDiag">Diagnostic</span>
+  </button>
+  <button class="tab-btn" data-target="marketplace">
+    <span class="icon">🧺</span><span data-i18n="navMarket">Marché</span>
+  </button>
+  <button class="tab-btn" data-target="conseiller">
+    <span class="icon">💬</span><span data-i18n="navChat">Conseiller</span>
+  </button>
+</nav>
+<script>
+const API_BASE = window.location.origin;
+const I18N = {
+  fr: {
+    brandName:"AgriImpact AI", brandTag:"Ton conseiller agricole, jour et nuit",
+    weatherLoading:"Chargement météo…",
+    diagTitle:"Une plante malade ?",
+    diagText:"Prends une photo de la feuille ou du plant. L'IA te dit ce qu'elle a et comment la soigner, en 30 secondes.",
+    btnTakePhoto:"Prendre une photo", btnGallery:"Galerie", diagAnalyzing:"Analyse en cours…",
+    tipLabel:"Conseil du jour",
+    tipDefault:"Arrose tôt le matin ou en fin de journée : moins d'évaporation, plus d'eau pour tes plants.",
+    marketTitle:"Marché", marketAnnonces:"annonces",
+    catAll:"Tout", catCrops:"Récoltes", catInputs:"Intrants", catEquipment:"Matériel", catLivestock:"Élevage",
+    btnSell:"Publier une annonce",
+    chatTitle:"Poser une question",
+    chatWelcome:"Bonjour ! Je suis là pour répondre à tes questions sur tes cultures, la météo, ou le marché. Pose ta question ci-dessous.",
+    chatPlaceholder:"Écris ta question…",
+    navDiag:"Diagnostic", navMarket:"Marché", navChat:"Conseiller",
+    emptyMarket:"Aucune annonce pour le moment. Sois le premier à publier !",
+    diagError:"Impossible d'analyser la photo pour le moment. Réessaie dans un instant.",
+    chatError:"Je n'ai pas pu répondre, réessaie dans un instant."
+  },
+  en: {
+    brandName:"AgriImpact AI", brandTag:"Your farming advisor, day and night",
+    weatherLoading:"Loading weather…",
+    diagTitle:"A sick plant?",
+    diagText:"Take a photo of the leaf or plant. The AI tells you what's wrong and how to treat it, in 30 seconds.",
+    btnTakePhoto:"Take a photo", btnGallery:"Gallery", diagAnalyzing:"Analyzing…",
+    tipLabel:"Tip of the day",
+    tipDefault:"Water early morning or late evening: less evaporation, more water for your plants.",
+    marketTitle:"Market", marketAnnonces:"listings",
+    catAll:"All", catCrops:"Crops", catInputs:"Supplies", catEquipment:"Equipment", catLivestock:"Livestock",
+    btnSell:"Post a listing",
+    chatTitle:"Ask a question",
+    chatWelcome:"Hello! I'm here to answer your questions about your crops, the weather, or the market. Ask below.",
+    chatPlaceholder:"Type your question…",
+    navDiag:"Diagnosis", navMarket:"Market", navChat:"Advisor",
+    emptyMarket:"No listings yet. Be the first to post one!",
+    diagError:"Couldn't analyze the photo right now. Try again shortly.",
+    chatError:"Couldn't get a reply, try again shortly."
+  },
+  fon: {
+    brandName:"AgriImpact AI", brandTag:"Nùnywɛtɔ́ gletokɔ́ towe, zǎn kpo hwezán kpo",
+    weatherLoading:"Jɔhɔn ɖò didoɖoɖo mɛ…",
+    diagTitle:"Atín ɖé ɖò azɔn mɛ à?",
+    diagText:"Sɛ́n foto atín alǒ amagbo ɔ tɔn. AI ɔ na ɖɔ nú we nǔ e ɖò azɔn ɔ mɛ é kpo lee a na gbɔ ɛ gbɔn é kpo, ɖò cobonu 30 mɛ.",
+    btnTakePhoto:"Sɛ́n foto", btnGallery:"Fotoɖoɖokpo", diagAnalyzing:"È ɖò kpɔ́n wɛ…",
+    tipLabel:"Wěɖexámɛ égbé tɔn",
+    tipDefault:"Sá sìn zǎnzǎn hwenu alǒ gbadanu: sìn ɖò yǒyǒ hun ǎ bǐ, sìn gègě ɖò atín towe lɛ sí.",
+    marketTitle:"Ajɔ̀tɛn", marketAnnonces:"wema",
+    catAll:"Bǐ", catCrops:"Nùkúnɖe", catInputs:"Nǔzɛnzɛn", catEquipment:"Nǔzinzan", catLivestock:"Kanlin",
+    btnSell:"Sɛ́n wema ɖokpo",
+    chatTitle:"Kanbyɔ nǔ ɖé",
+    chatWelcome:"Kúdo! Un ɖò fí bo na yí gbè nú kanbyɔ towe lɛ dó nùkúnɖe, jɔhɔn, alǒ ajɔ̀tɛn wu. Kanbyɔ ɖò glɔ.",
+    chatPlaceholder:"Wlan kanbyɔ towe…",
+    navDiag:"Kpɔ́nkpɔ́n", navMarket:"Ajɔ̀tɛn", navChat:"Nùnywɛtɔ́",
+    emptyMarket:"Wema ɖě ǎ ɖò fí ǎ. Nyí mɛ nukɔntɔ e na sɛ́n ɖokpo é!",
+    diagError:"Un sixu kpɔ́n foto ɔ ǎ. Gbɛ́ azɔn ɖevo.",
+    chatError:"Un sixu na gbè ǎ, gbɛ́ azɔn ɖevo."
+  },
+bariba: {
+    brandName:"AgriImpact AI", brandTag:"A kpanguru sesuru sun, cee sɛ sɛ",
+    weatherLoading:"Jɔɔn koo…",
+    diagTitle:"Kpanguru sɛ dan sun bura?",
+    diagText:"A foto ta kpanguru sɛ. AI ku a wa ka i bura, ka i sɛ n cɔku, wure 30 nɛ.",
+    btnTakePhoto:"Foto ta", btnGallery:"Fotorobu", diagAnalyzing:"Kpaaru dama…",
+    tipLabel:"Sesuru sɔɔri",
+    tipDefault:"Ku a nyiam kpanguru sɛ tuma tuma, sɔ sanam, wanaa gura.",
+    marketTitle:"Suuru", marketAnnonces:"kpaŋgi",
+    catAll:"Baa", catCrops:"Bura", catInputs:"Nyerandi", catEquipment:"Kparabu", catLivestock:"Bikperu",
+    btnSell:"Kpaŋgi ta",
+    chatTitle:"Kpaaru kpasi",
+    chatWelcome:"Aa bonjour! N ye sun a kpaaru dama kpanguru wo, jɔɔn wo, sɔ suuru wo. A kpaaru boto.",
+    chatPlaceholder:"A kpaaru wiiru…",
+    navDiag:"Kpaaru", navMarket:"Suuru", navChat:"Sesuru",
+    emptyMarket:"Kpaŋgi kaa ye baa. Sɔɔ dee wina n ta ye!",
+    diagError:"N gbaa kpaaru foto sɔɔ baa. Gura ɖokpo.",
+    chatError:"N gbaa gbè sɔɔ baa, gura ɖokpo."
+  },
+  dendi: {
+    brandName:"AgriImpact AI", brandTag:"Ni farmatɔ nùnywɛtɔ́, cee kùi",
+    weatherLoading:"Jɔɔn kùn koo…",
+    diagTitle:"Yasi ni doonu mɛ?",
+    diagText:"Foto sɛ́n yasi wala atín ɔ tɔn. AI ku a wa ka i doonu, ka i sɛ n cɔku, wure 30 mɛ.",
+    btnTakePhoto:"Foto sɛ́n", btnGallery:"Fotorobu", diagAnalyzing:"Kpaaru dama…",
+    tipLabel:"Wěɖexámɛ hondo",
+    tipDefault:"Ku a nyiam yasi sɛ tuma tuma, sɔ sanam, ka wanaa gura.",
+    marketTitle:"Suuru", marketAnnonces:"wema",
+    catAll:"Baa", catCrops:"Yasi", catInputs:"Nyerandi", catEquipment:"Kparabu", catLivestock:"Kanlin",
+    btnSell:"Wema sɛ́n",
+    chatTitle:"Kanbyɔ ɖé kpasi",
+    chatWelcome:"Kúdo! N ye fí sun ka yí gbè ni kanbyɔ lɛ dó yasi, jɔɔn, alǒ suuru wu.",
+    chatPlaceholder:"Ni kanbyɔ wlan…",
+    navDiag:"Kpaaru", navMarket:"Suuru", navChat:"Nùnywɛtɔ́",
+    emptyMarket:"Wema ɖě ǎ ɖò fí ǎ. Nyí mɛ nukɔntɔ e na sɛ́n ɖokpo é!",
+    diagError:"Un sixu kpɔ́n foto ɔ ǎ. Gbɛ́ azɔn ɖevo.",
+    chatError:"Un sixu na gbè ǎ, gbɛ́ azɔn ɖevo."
+  },
+  yor: {
+    brandName:"AgriImpact AI", brandTag:"Onímọ̀ràn r'oko rẹ, ọ̀sán àti òru",
+    weatherLoading:"Ń gba ìròyìn ojú ọjọ́…",
+    diagTitle:"Ohun ọ̀gbìn kan ṣàìsàn?",
+    diagText:"Ya fọ́tò ewé tàbí ohun ọ̀gbìn náà. AI yóò sọ ohun tó ń ṣẹlẹ̀ àti bí a ṣe lè wò ó sàn, láàrin ìṣẹ́jú àáyá 30.",
+    btnTakePhoto:"Ya fọ́tò", btnGallery:"Àwòrán tí ó wà", diagAnalyzing:"Ń ṣàyẹ̀wò…",
+    tipLabel:"Ìmọ̀ràn ọjọ́ náà",
+    tipDefault:"Bomi rin ní kùtùkùtù òwúrọ̀ tàbí ní ìrọ̀lẹ́: kí omi má bàa yọ jáde kánkán, kí ohun ọ̀gbìn rẹ lè rí omi tó.",
+    marketTitle:"Ọjà", marketAnnonces:"ìpolówó",
+    catAll:"Gbogbo", catCrops:"Ìkórè", catInputs:"Àwọn ohun èlò", catEquipment:"Ohun èlò", catLivestock:"Ẹran ọ̀sìn",
+    btnSell:"Fi ìpolówó kan lélẹ̀",
+    chatTitle:"Béèrè ìbéèrè kan",
+    chatWelcome:"Ẹ n lẹ! Mo wà níbí láti dá ìbéèrè rẹ nípa oko rẹ, ojú ọjọ́, tàbí ọjà náà lóhùn. Béèrè ní ìsàlẹ̀.",
+    chatPlaceholder:"Kọ ìbéèrè rẹ…",
+    navDiag:"Àyẹ̀wò", navMarket:"Ọjà", navChat:"Onímọ̀ràn",
+    emptyMarket:"Kò tí ì sí ìpolówó kankan. Jẹ́ ẹni àkọ́kọ́ tí yóò fi ọ̀kan lélẹ̀!",
+    diagError:"A kò lè ṣàyẹ̀wò fọ́tò náà lọ́wọ́lọ́wọ́. Gbìyànjú lẹ́ẹ̀kan sí i láìpẹ́.",
+    chatError:"A kò lè dáhùn, gbìyànjú lẹ́ẹ̀kan sí i láìpẹ́."
+  }
+};
+let currentLang = 'fr';
+function applyI18n(lang){
+  currentLang = lang;
+  const dict = I18N[lang] || I18N.fr;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    if(dict[key]) el.textContent = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    const key = el.getAttribute('data-i18n-placeholder');
+    if(dict[key]) el.setAttribute('placeholder', dict[key]);
+  });
+  document.documentElement.lang = lang === 'en' ? 'en' : 'fr';
+}
+document.getElementById('langSwitch').addEventListener('change', (e)=>{
+  applyI18n(e.target.value);
+  loadMarketplace(currentCategory);
+});
+async function loadWeather(){
+  try{
+    const pos = await new Promise((resolve,reject)=>{
+      if(!navigator.geolocation) return reject('no geoloc');
+      navigator.geolocation.getCurrentPosition(resolve, reject, {timeout:6000});
+    });
+    const {latitude, longitude} = pos.coords;
+    await fetchWeather(latitude, longitude);
+  }catch(e){
+    await fetchWeather(9.337, 2.617, 'Parakou');
+  }
+}
+async function fetchWeather(lat, lon, fallbackName){
+  try{
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=auto`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const temp = Math.round(data.current.temperature_2m);
+    const code = data.current.weather_code;
+    document.getElementById('weatherTemp').textContent = `${temp}°C`;
+    document.getElementById('weatherDesc').textContent = weatherCodeToText(code);
+    document.getElementById('weatherIcon').textContent = weatherCodeToIcon(code);
+    document.getElementById('weatherLoc').textContent = fallbackName || '';
+  }catch(e){
+    document.getElementById('weatherDesc').textContent = '—';
+  }
+}
+function weatherCodeToIcon(code){
+  if(code === 0) return '☀️';
+  if([1,2].includes(code)) return '🌤️';
+  if(code === 3) return '☁️';
+  if([45,48].includes(code)) return '🌫️';
+  if([51,53,55,61,63,65,80,81,82].includes(code)) return '🌧️';
+  if([95,96,99].includes(code)) return '⛈️';
+  return '🌤️';
+}
+function weatherCodeToText(code){
+  const map = {
+    fr:{clear:"Ciel dégagé", cloudy:"Nuageux", rain:"Pluie", storm:"Orage", fog:"Brume"},
+    en:{clear:"Clear sky", cloudy:"Cloudy", rain:"Rain", storm:"Storm", fog:"Fog"}
+  };
+  const t = map[currentLang] || map.fr;
+  if(code === 0) return t.clear;
+  if([1,2,3].includes(code)) return t.cloudy;
+  if([45,48].includes(code)) return t.fog;
+  if([51,53,55,61,63,65,80,81,82].includes(code)) return t.rain;
+  if([95,96,99].includes(code)) return t.storm;
+  return t.clear;
+}
+const photoInput = document.getElementById('photoInput');
+document.getElementById('btnCamera').addEventListener('click', ()=> photoInput.click());
+document.getElementById('btnGallery').addEventListener('click', ()=>{
+  photoInput.removeAttribute('capture');
+  photoInput.click();
+});
+photoInput.addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const previewZone = document.getElementById('previewZone');
+  const previewImg = document.getElementById('previewImg');
+  const loading = document.getElementById('diagLoading');
+  const result = document.getElementById('diagResult');
+  previewImg.src = URL.createObjectURL(file);
+  previewZone.style.display = 'block';
+  result.classList.remove('show');
+  loading.classList.add('show');
+  try{
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('lang', currentLang);
+    const res = await fetch(`${API_BASE}/api/diagnostic`, { method:'POST', body: formData });
+    if(!res.ok) throw new Error('Erreur serveur');
+    const data = await res.json();
+    loading.classList.remove('show');
+    result.classList.add('show');
+    result.innerHTML = `
+      <h4>${data.diagnostic || '—'}</h4>
+      <p><strong>${data.confiance || ''}</strong></p>
+      <p style="margin-top:8px;">${(data.traitement_bio || []).join(' · ')}</p>
+    `;
+  }catch(err){
+    loading.classList.remove('show');
+    result.classList.add('show');
+    result.innerHTML = `<p>${I18N[currentLang].diagError}</p>`;
+  }
+});
+let currentCategory = 'all';
+document.getElementById('catScroll').addEventListener('click', (e)=>{
+  const chip = e.target.closest('.cat-chip');
+  if(!chip) return;
+  document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  currentCategory = chip.dataset.cat;
+  loadMarketplace(currentCategory);
+});
+const CATEGORY_ICONS = { crops:'🌾', inputs:'🧪', equipment:'🚜', livestock:'🐐' };
+async function loadMarketplace(category){
+  const grid = document.getElementById('listingGrid');
+  const countEl = document.getElementById('marketCount');
+  try{
+    const url = new URL(`${API_BASE}/api/marketplace/listings`);
+    if(category && category !== 'all') url.searchParams.set('category', category);
+    const res = await fetch(url);
+    const listings = await res.json();
+    countEl.textContent = `${listings.length} ${I18N[currentLang].marketAnnonces}`;
+    if(!listings.length){
+      grid.innerHTML = `<div style="text-align:center; padding:24px 12px; color:#a0917d; font-size:13.5px;">${I18N[currentLang].emptyMarket}</div>`;
+      return;
+    }
+    grid.innerHTML = listings.map(l => `
+      <div class="listing-card">
+        <div class="listing-thumb">${CATEGORY_ICONS[l.category] || '🧺'}</div>
+        <div class="listing-body">
+          <div class="listing-title">${escapeHtml(l.title)}</div>
+          <div class="listing-meta">${escapeHtml(l.location_name || '')}</div>
+        </div>
+        <div class="listing-price">${l.price_amount ? Math.round(l.price_amount).toLocaleString() + ' ' + (l.currency||'FCFA') : ''}</div>
+      </div>
+    `).join('');
+  }catch(e){
+    grid.innerHTML = `<div style="text-align:center; padding:24px 12px; color:#a0917d; font-size:13.5px;">${I18N[currentLang].emptyMarket}</div>`;
+    countEl.textContent = '';
+  }
+}
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+document.getElementById('btnSell').addEventListener('click', ()=>{
+  alert(currentLang === 'en' ? 'Listing form coming soon.' : 'Formulaire de publication à venir.');
+});
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+function addMsg(text, who){
+  const div = document.createElement('div');
+  div.className = `msg ${who}`;
+  div.textContent = text;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+async function sendChat(){
+  const text = chatInput.value.trim();
+  if(!text) return;
+  addMsg(text, 'user');
+  chatInput.value = '';
+  try{
+    const res = await fetch(`${API_BASE}/api/chat`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message:text, lang: currentLang })
+    });
+    const data = await res.json();
+    addMsg(data.reply || data.message || '—', 'bot');
+  }catch(e){
+    addMsg(I18N[currentLang].chatError, 'bot');
+  }
+}
+document.getElementById('chatSend').addEventListener('click', sendChat);
+chatInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') sendChat(); });
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const target = document.getElementById(btn.dataset.target);
+    if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+});
+loadWeather();
+loadMarketplace('all');
+</script>
+</body>
+</html>
