@@ -1,4 +1,3 @@
-// src/routes/diagnosticRoutes.js
 const express = require('express');
 const router = express.Router();
 const claude = require('../services/claudeService');
@@ -16,10 +15,9 @@ router.post('/', async (req, res) => {
 
     const result = await claude.diagnoseCrop(image_base64, media_type, lang || 'fr');
 
-    // On rattache au pseudo-utilisateur web via son session_id (pas de vrai compte requis)
     if (session_id) {
-      const user = userModel.findOrCreateByPhone(`web:${session_id}`, null);
-      conversationModel.saveDiagnostic(user.id, 'web', null, result);
+      const user = await userModel.findOrCreateByPhone(`web:${session_id}`, null);
+      await conversationModel.saveDiagnostic(user.id, 'web', null, result);
     }
 
     res.json(result);
